@@ -1,5 +1,6 @@
 # Terraform deployment example
-# Parameters are Service Connection, Resource Group, Storage Account, Storage Account Container, Terraform State File
+# Parameters are Service Connection, Subscription Id, Resource Group, Storage Account, Storage Account Container, 
+# Terraform State File
 
 trigger:
   - None
