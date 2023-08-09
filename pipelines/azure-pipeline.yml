@@ -1,0 +1,50 @@
+# Terraform deployment example
+# Parameters are Service Connection, Resource Group, Storage Account, Storage Account Container, Terraform State File
+
+trigger:
+  - None
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+
+# Equivalent to terraform init but with a backend defined
+- task: TerraformTaskV2@2
+  inputs:
+    provider: 'azurerm'
+    command: 'init'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/tf-files'
+    backendServiceArm: 'Service-Principal-Based-ServiceConnection'
+    backendAzureRmResourceGroupName: 'Test-RG'
+    backendAzureRmStorageAccountName: 'teststorageaccount'
+    backendAzureRmContainerName: 'terraform'
+    backendAzureRmKey: 'tf/terraform.tfstate'
+
+# Equivalent to terraform plan -out main.tfplan
+- task: TerraformTaskV2@2
+  inputs:
+    provider: 'azurerm'
+    command: 'plan'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/tf-files'
+    commandOptions: -out 'main.tfplan' -var="subscriptionId=$(subscriptionId)"
+    environmentServiceNameAzureRM: 'Service-Principal-Based-ServiceConnection'
+
+# Equivalent to terraform apply main.tfplan
+- task: TerraformTaskV2@2
+  inputs:
+    provider: 'azurerm'
+    command: 'apply'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/tf-files'
+    commandOptions: -var="subscriptionId=$(subscriptionId)"
+    environmentServiceNameAzureRM: 'Service-Principal-Based-ServiceConnection'
+
+# Equivalend to terraform apply -destroy.
+# You might not want to do this last part right away
+- task: TerraformTaskV2@2
+  inputs:
+    provider: 'azurerm'
+    command: 'destroy'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/tf-files'
+    commandOptions: -var="subscriptionId=$(subscriptionId)"
+    environmentServiceNameAzureRM: 'Service-Principal-Based-ServiceConnection'
