@@ -1,0 +1,78 @@
+# Terraform deployment example
+# Parameters are Service Connection, Resource Group, Storage Account, Storage Account Container, Terraform State File
+
+trigger:
+  - pipelines
+
+pool: 
+  vmImage: 'ubuntu-latest'
+
+stages:
+# Equivalent to terraform init but with a backend defined
+- stage: plan
+  displayName: plan stage
+  jobs: 
+  - job: plan_job
+    displayName: Terraform init
+    timeoutInMinutes: 30 # job times out in 30 minutes
+    steps:   
+    - task: TerraformTaskV2@2
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/tf-files'
+        backendServiceArm: 'Service-Principal-Based-ServiceConnection'
+        backendAzureRmResourceGroupName: 'Test-RG'
+        backendAzureRmStorageAccountName: 'teststorageaccount'
+        backendAzureRmContainerName: 'terraform'
+        backendAzureRmKey: 'tf/terraform.tfstate'
+    - task: TerraformTaskV2@2
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/tf-files'
+        commandOptions: -var="subscriptionId=$(subscriptionId)"
+        environmentServiceNameAzureRM: 'Service-Principal-Based-ServiceConnection'
+
+# Review step
+- stage: review_by_user
+  displayName: Review stage
+  jobs: 
+  - job: waitForValidation
+    displayName: Wait for external validation
+    pool: server
+    timeoutInMinutes: 1440 # job times out in a day
+    steps:   
+    - task: ManualValidation@0
+      timeoutInMinutes: 1440 # task times out in 1 day
+      inputs:
+          notifyUsers: |
+              $(user-email)
+          instructions: 'Please validate the build configuration and resume'
+          onTimeout: 'reject'
+          
+# Equivalent to terraform apply main.tfplan
+- stage: apply
+  displayName: Apply stage
+  jobs: 
+  - job: apply_job
+    displayName: Terraform apply
+    timeoutInMinutes: 30 # job times out in 30 minutes
+    steps:     
+    - task: TerraformTaskV2@2
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/tf-files'
+        backendServiceArm: 'Service-Principal-Based-ServiceConnection'
+        backendAzureRmResourceGroupName: 'Test-RG'
+        backendAzureRmStorageAccountName: 'teststorageaccount'
+        backendAzureRmContainerName: 'terraform'
+        backendAzureRmKey: 'tf/terraform.tfstate'
+    - task: TerraformTaskV2@2
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        commandOptions: -var="subscriptionId=$(subscriptionId)"
+        environmentServiceNameAzureRM: 'Service-Principal-Based-ServiceConnection'
